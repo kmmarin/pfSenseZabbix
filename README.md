@@ -1,4 +1,4 @@
-These script will create xml files that can be used to discover items in zabbix
+These script will create json files that can be used to discover items in zabbix
 To use the gateway.php script you need to add this to the User parameters in the zabbix agent config in pfsense
 UserParameter=get.gatewaystatus,/usr/local/sbin/gateway.php
 Then you have to create an item prototype like 
