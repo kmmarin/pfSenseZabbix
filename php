@@ -1,4 +1,3 @@
-/usr/local/sbin/gateway.php
 #!/usr/local/bin/php
 <?php
 
