@@ -1,0 +1,361 @@
+zabbix_export:
+  version: '7.2'
+  template_groups:
+    - uuid: e8ea65fccf494ee6b627235e98b2ab3e
+      name: Penske
+  templates:
+    - uuid: e4cb507593e448ac870d90fd08bac8e0
+      template: 'pfsense by UserParameter'
+      name: 'pfsense by UserParameter'
+      description: |
+        UserParameter=get.pfsenseconfig,cat /cf/conf/config.xml
+        UserParameter=get.gatewaystatus,/usr/local/sbin/gateway.php
+        UserParameter=get.interfacetatus,/usr/local/sbin/interfaces.php
+      groups:
+        - name: Penske
+      items:
+        - uuid: d5423f310ea349b69341aa88bb5ab111
+          name: get.gatewaystatus
+          key: get.gatewaystatus
+          value_type: TEXT
+        - uuid: 975a650f78ad4cc997e5a61c73a30481
+          name: get.interfacestatus
+          key: get.interfacetatus
+          value_type: TEXT
+        - uuid: 54b320993a2f4678a7a458a4c43935bd
+          name: get.pfsense.config
+          key: get.pfsenseconfig
+          delay: 1d
+          value_type: TEXT
+      discovery_rules:
+        - uuid: 89f7a067b53e46ee9d9851bc7450f9ab
+          name: Gateway.Discovery
+          type: DEPENDENT
+          key: Gateway.Discovery
+          item_prototypes:
+            - uuid: 71aea4d1f7b34a9ba4f425fa3b73406a
+              name: 'Gateway {#NAME} Latency GW={#SOURCE} Monitor={#MONITOR}'
+              type: DEPENDENT
+              key: 'gateway.delay["{#NAME}"]'
+              value_type: FLOAT
+              trends: '0'
+              units: ms
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.Name=="{#NAME}")].Delay'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+                - type: STR_REPLACE
+                  parameters:
+                    - 'Not Monitored'
+                    - '0'
+                - type: STR_REPLACE
+                  parameters:
+                    - online
+                    - '0'
+                - type: TRIM
+                  parameters:
+                    - ms
+              master_item:
+                key: get.gatewaystatus
+              tags:
+                - tag: PFSENSE
+                  value: GATEWAY
+            - uuid: 913d9f7906da4d3bb066ae328aa06505
+              name: 'Gateway {#NAME} Status GW={#SOURCE} Monitor={#MONITOR}'
+              type: DEPENDENT
+              key: 'gateway.["{#NAME}"]'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.Name=="{#NAME}")].Status'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+                - type: STR_REPLACE
+                  parameters:
+                    - 'null'
+                    - 'Not Monitored'
+              master_item:
+                key: get.gatewaystatus
+              tags:
+                - tag: PFSENSE
+                  value: GATEWAY
+              trigger_prototypes:
+                - uuid: bb4323e075df4e2da70f3411ce7e0ce2
+                  expression: 'last(/pfsense by UserParameter/gateway.["{#NAME}"])="down"'
+                  name: 'pfSense Gateway is DOWN!'
+                  priority: HIGH
+          master_item:
+            key: get.gatewaystatus
+          lld_macro_paths:
+            - lld_macro: '{#DELAY}'
+              path: $.Delay
+            - lld_macro: '{#LOSS}'
+              path: $.Loss
+            - lld_macro: '{#MONITOR}'
+              path: $.Monitor
+            - lld_macro: '{#NAME}'
+              path: $.Name
+            - lld_macro: '{#SOURCE}'
+              path: $.Source
+            - lld_macro: '{#STATUS}'
+              path: $.Status
+            - lld_macro: '{#STDDEV}'
+              path: $.StdDev
+            - lld_macro: '{#SUBSTATUS}'
+              path: $.Substatus
+        - uuid: cca91b91fc9c4d2dbc2a1e90968862e8
+          name: Interface.Discovery
+          type: DEPENDENT
+          key: Interface.Discovery
+          item_prototypes:
+            - uuid: 210bf368ab73459195a535d3ba48e9d4
+              name: 'Interface {#INTERFACE} carp status'
+              type: DEPENDENT
+              key: 'Interface.carpstatus["{#INTERFACE}"]'
+              value_type: TEXT
+              description: |
+                {#ADDRESS}
+                {#CARPADDRESS}
+                {#DESCRIPTION}
+                {#INTERFACE}
+                {#MAC}
+                {#MEDIA}
+                {#STATUS}
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.interface=="{#INTERFACE}")].carp'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+              master_item:
+                key: get.interfacetatus
+              tags:
+                - tag: PFSENSE
+                  value: 'IPV4 ADDRESS'
+            - uuid: 1cc36d8961544772a0b48f62b7538855
+              name: 'Interface {#INTERFACE} carp vhid'
+              type: DEPENDENT
+              key: 'Interface.carpvhid["{#INTERFACE}"]'
+              value_type: TEXT
+              description: |
+                {#ADDRESS}
+                {#CARPADDRESS}
+                {#DESCRIPTION}
+                {#INTERFACE}
+                {#MAC}
+                {#MEDIA}
+                {#STATUS}
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.interface=="{#INTERFACE}")].vhid'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+              master_item:
+                key: get.interfacetatus
+              tags:
+                - tag: PFSENSE
+                  value: 'IPV4 ADDRESS'
+            - uuid: 26ae9d9609064c91b0d9269b51f8d161
+              name: 'Interface {#INTERFACE} CARP IP Address'
+              type: DEPENDENT
+              key: 'Interface.carp["{#INTERFACE}"]'
+              value_type: TEXT
+              description: |
+                {#ADDRESS}
+                {#CARPADDRESS}
+                {#DESCRIPTION}
+                {#INTERFACE}
+                {#MAC}
+                {#MEDIA}
+                {#STATUS}
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.interface=="{#INTERFACE}")].carpaddress'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+              master_item:
+                key: get.interfacetatus
+              tags:
+                - tag: PFSENSE
+                  value: 'IPV4 ADDRESS'
+            - uuid: 348cd68ae4384c23b2f794bed35bb72a
+              name: 'Interface {#INTERFACE} Description'
+              type: DEPENDENT
+              key: 'Interface.description["{#INTERFACE}"]'
+              value_type: TEXT
+              description: |
+                {#ADDRESS}
+                {#CARPADDRESS}
+                {#DESCRIPTION}
+                {#INTERFACE}
+                {#MAC}
+                {#MEDIA}
+                {#STATUS}
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.interface=="{#INTERFACE}")].description'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+              master_item:
+                key: get.interfacetatus
+              tags:
+                - tag: PFSENSE
+                  value: 'IPV4 ADDRESS'
+            - uuid: e0e49f4b11234f358630e25a908d4773
+              name: 'Interface {#INTERFACE} Physical IP Address'
+              type: DEPENDENT
+              key: 'Interface.ipv4["{#INTERFACE}"]'
+              value_type: TEXT
+              description: |
+                {#ADDRESS}
+                {#CARPADDRESS}
+                {#DESCRIPTION}
+                {#INTERFACE}
+                {#MAC}
+                {#MEDIA}
+                {#STATUS}
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.interface=="{#INTERFACE}")].address'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+              master_item:
+                key: get.interfacetatus
+              tags:
+                - tag: PFSENSE
+                  value: 'IPV4 ADDRESS'
+            - uuid: 77d1498b97a64e34800457f3ad670811
+              name: 'Interface {#INTERFACE} mac address'
+              type: DEPENDENT
+              key: 'Interface.mac["{#INTERFACE}"]'
+              value_type: TEXT
+              description: |
+                {#ADDRESS}
+                {#CARPADDRESS}
+                {#DESCRIPTION}
+                {#INTERFACE}
+                {#MAC}
+                {#MEDIA}
+                {#STATUS}
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.interface=="{#INTERFACE}")].mac'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+              master_item:
+                key: get.interfacetatus
+              tags:
+                - tag: PFSENSE
+                  value: 'IPV4 ADDRESS'
+            - uuid: 994c0d47ad314616a91511aad1bd24ce
+              name: 'Interface {#INTERFACE} status'
+              type: DEPENDENT
+              key: 'Interface.status["{#INTERFACE}"]'
+              value_type: TEXT
+              description: |
+                {#ADDRESS}
+                {#CARPADDRESS}
+                {#DESCRIPTION}
+                {#INTERFACE}
+                {#MAC}
+                {#MEDIA}
+                {#STATUS}
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.interface=="{#INTERFACE}")].status'
+                - type: TRIM
+                  parameters:
+                    - '['
+                - type: TRIM
+                  parameters:
+                    - ']'
+                - type: TRIM
+                  parameters:
+                    - '"'
+              master_item:
+                key: get.interfacetatus
+              tags:
+                - tag: PFSENSE
+                  value: 'IPV4 ADDRESS'
+          master_item:
+            key: get.interfacetatus
+          lld_macro_paths:
+            - lld_macro: '{#ADDRESS}'
+              path: $.address
+            - lld_macro: '{#CARPADDRESS}'
+              path: $.broadcast
+            - lld_macro: '{#DESCRIPTION}'
+              path: $.description
+            - lld_macro: '{#INTERFACE}'
+              path: $.interface
+            - lld_macro: '{#MAC}'
+              path: $.mac
+            - lld_macro: '{#MEDIA}'
+              path: $.media
+            - lld_macro: '{#STATUS}'
+              path: $.status
