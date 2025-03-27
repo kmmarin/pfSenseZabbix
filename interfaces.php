@@ -16,15 +16,20 @@ $blocks = preg_split('/\n(?=[^\s])/', $output); // Splits each interface block
 foreach ($blocks as $block) {
     $lines = explode("\n", trim($block));
     $interface = [];
-    $carpDetails = [];
 
     // Extract interface name
     if (preg_match('/^(\S+):/', $lines[0], $matches)) {
         $iface = $matches[1];
         $interface['interface'] = $iface;
     } else {
-        continue;
+        continue; // Skip blocks that don't have a valid interface
     }
+
+    // Initialize variables for the addresses and vhid
+    $addressFound = false;
+    $carpAddressFound = false;
+    $vhid = null;
+    $carpStatus = null;
 
     // Process each line for details
     foreach ($lines as $line) {
@@ -35,30 +40,48 @@ foreach ($blocks as $block) {
             $interface['mac'] = $matches[1];
         }
         if (preg_match('/inet\s(\d+\.\d+\.\d+\.\d+)\snetmask\s0x[a-f0-9]+\sbroadcast\s(\d+\.\d+\.\d+\.\d+)/', $line, $matches)) {
-            $interface['address'] = $matches[1];
-            $interface['broadcast'] = $matches[2];
+            if (!$addressFound) {
+                // First inet line - set as the main address
+                $interface['address'] = $matches[1];
+                $interface['broadcast'] = $matches[2];
+                $addressFound = true;
+            }
         }
-        if (preg_match('/inet6\s([a-f0-9:]+)%?\S*\sprefixlen\s\d+/', $line, $matches)) {
-            $interface['ipv6'][] = $matches[1];
+        if (preg_match('/inet\s(\d+\.\d+\.\d+\.\d+)\snetmask\s0x[a-f0-9]+\sbroadcast\s(\d+\.\d+\.\d+\.\d+)\svhid\s(\d+)/', $line, $matches)) {
+            if (!$carpAddressFound) {
+                // Second inet line with vhid - set as carp address
+                $interface['carpaddress'] = $matches[1];
+                $vhid = $matches[3];  // Set the vhid
+                $carpAddressFound = true;
+            }
         }
-        if (preg_match('/media:\s+(.+)/', $line, $matches)) {
-            $interface['media'] = trim($matches[1]);
+        if (preg_match('/carp:\s+(\S+)\s+vhid\s+\d+/', $line, $matches)) {
+            // Capture carp status (e.g., "MASTER")
+            $carpStatus = $matches[1];
         }
         if (preg_match('/status:\s+(.+)/', $line, $matches)) {
             $interface['status'] = trim($matches[1]);
         }
-        if (preg_match('/flags=.*<([^>]+)>/', $line, $matches)) {
-            $interface['flags'] = explode(',', $matches[1]);
-        }
-        if (preg_match('/options=.*<([^>]+)>/', $line, $matches)) {
-            $interface['options'] = explode(',', $matches[1]);
-        }
     }
 
+    // Add vhid and carp status if available
+    if ($vhid) {
+        $interface['vhid'] = $vhid;
+    }
+    if ($carpStatus) {
+        $interface['carp'] = $carpStatus;
+    }
+
+    // Exclude interfaces with "no carrier" status or no inet address
+    if ((isset($interface['status']) && $interface['status'] === 'no carrier') || !isset($interface['address'])) {
+        continue;
+    }
+
+    // Add the interface to the result array (not grouped by interface name)
     $interfaces[] = $interface;
 }
 
-// Print JSON output
+// Print JSON output as a flat list
 echo json_encode($interfaces, JSON_PRETTY_PRINT) . PHP_EOL;
 
 ?>
